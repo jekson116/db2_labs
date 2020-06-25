@@ -3,7 +3,7 @@ from scrapy.http.response import Response
 import scrapy
 
 
-class FootballSpider(scrapy.Spider):
+class GolosSpider(scrapy.Spider):
     name = 'golos'
     allowed_domains = ['golos.ua']
     start_urls = ['https://golos.ua/']
