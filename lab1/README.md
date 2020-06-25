@@ -6,23 +6,23 @@
 
 ## Варіант завдання
 
-5 варіант згідно номера у списку групи
+8 варіант згідно номера у списку групи
 
 | Базова сторінка (завдання 1) | Зміст завдання 2     | Адреса інтернет-магазину (завдання 3) |
 |------------------------------|----------------------|---------------------------------------|
-| www.football.ua         | Кількість графічних фрагментів по кожному документу | www.moyo.ua |
+| www.golos.ua         | Середня кількість текстових фрагментів | www.wallet.ua |
 
 ## Лістинг коду
 
-### Збирання даних зі сторінки www.football.ua  
+### Збирання даних зі сторінки www.golos.ua  
 
-`src/scrapers/spiders/football.py`
+`src/scrapers/spiders/golos.py`
 
 ```python
-class FootballSpider(scrapy.Spider):
-    name = 'football'
-    allowed_domains = ['football.ua']
-    start_urls = ['https://football.ua/newsarc/']
+class GolosSpider(scrapy.Spider):
+    name = 'golos'
+    allowed_domains = ['golos.ua']
+    start_urls = ['https://golos.ua/']
 
     def parse(self, response: Response):
         all_images = response.xpath("//img/@src[starts-with(., 'http')]")
@@ -35,29 +35,31 @@ class FootballSpider(scrapy.Spider):
         }
         if response.url == self.start_urls[0]:
             all_links = response.xpath(
-                "//a/@href[starts-with(., 'https://football.ua/')][substring(., string-length() - 4) = '.html']")
+                "//a/@href[starts-with(., 'https://golos.ua/')][substring(., string-length() - 4) = '.html']")
             selected_links = [link.get() for link in all_links][:19]
             for link in selected_links:
                 yield scrapy.Request(link, self.parse)
 ```
 
-### Збирання даних зі сторінки www.moyo.ua
+### Збирання даних зі сторінки www.wallet.ua
 
 `src/scrapers/spiders/moyo.py`
 
 ```python
-class MoyoSpider(scrapy.Spider):
-    name = 'moyo'
-    allowed_domains = ['www.moyo.ua']
-    start_urls = ['https://www.moyo.ua/telecommunication/smart/']
+class WalletSpider(scrapy.Spider):
+    name = 'wallet'
+    allowed_domains = ['www.wallet.ua']
+    start_urls = ['https://wallet.ua/c/f-umbrellas-pol_girls-pol_boys/']
 
     def parse(self, response: Response):
-        products = response.xpath("//section[contains(@class, 'product-tile_product')]")[:20]
+        products = response.xpath("//div[contains(@class, 'prd-wrap')]")[:20]
+        print(products)
         for product in products:
             yield {
-                'description': product.xpath("./@data-name").get(),
-                'price': product.xpath("./@data-price").get(),
-                'img': product.xpath("./@data-img").get()
+                'img': 'https://wallet.ua/' + product.xpath(
+                    ".//img[contains(@class, 'first-picture')]/@src").get(),
+                'price': product.xpath(".//em[contains(@class, 'old crate')]/@data-rate").get(),
+                'description': product.xpath(".//a[contains(@class, 'name')]/text()").get()
             }
 ```
 
@@ -71,14 +73,14 @@ class ScrapersPipeline(object):
         self.root = None
 
     def open_spider(self, spider):
-        self.root = etree.Element("data" if spider.name == "football" else "shop")
+        self.root = etree.Element("data" if spider.name == "golos" else "shop")
 
     def close_spider(self, spider):
-        with open('task%d.xml' % (1 if spider.name == "football" else 2), 'wb') as f:
+        with open('task%d.xml' % (1 if spider.name == "golos" else 2), 'wb') as f:
             f.write(etree.tostring(self.root, encoding="UTF-8", pretty_print=True, xml_declaration=True))
 
     def process_item(self, item, spider):
-        if spider.name == "football":
+        if spider.name == "golos":
             page = etree.Element("page", url=item["url"])
             for payload in item["payload"]:
                 fragment = etree.Element("fragment", type=payload["type"])
@@ -108,12 +110,8 @@ class ScrapersPipeline(object):
 def task1():
     print("Task #1")
     root = etree.parse("task1.xml")
-    pages = root.xpath("//page")
-    print("Number of graphical documents for scrapped documents:")
-    for page in pages:
-        url = page.xpath("@url")[0]
-        count = page.xpath("count(fragment[@type='image'])")
-        print("%s: %d" % (url, count))
+    avg = root.xpath("count(//fragment[@type='text']) div count(//page)")
+    print("Average amount of text on page: %.2f" % avg)
 ```
 
 ### Завдання №2
@@ -205,66 +203,58 @@ def task2():
 ```xml
 <?xml version='1.0' encoding='UTF-8'?>
 <data>
-  <page url="https://football.ua/newsarc/">
-    <fragment type="text">Новости футбола Украины и мира — football.ua</fragment>
-    <fragment type="text">Преимущества регистрации на football.ua:</fragment>
-    <fragment type="text">Общение с журналистами football.ua и isport.ua в конференциях</fragment>
-    <fragment type="text">Возможность получить e-mail на домене @football.ua</fragment>
-    <fragment type="text">Соглашение о конфиденциальности</fragment>
-    <fragment type="text">Я уже зарегистрирован, впустите!</fragment>
-    <fragment type="text">Введите адрес вашей электронной почты</fragment>
-    <fragment type="text">Шахтер спасся от потери очков в матче против Десны</fragment>
-    <fragment type="text">"Бело-фиолетовые" воспользовались численным преимуществом и добыли победу.</fragment>
-    <fragment type="text">Симоне Индзаги: Лацио мог бы быть на вершине в других лигах</fragment>
-    <fragment type="text">Наставник римлян прокомментировал победу над "грифонами".</fragment>
-    <fragment type="text">Бруну Фернандеш — первый игрок МЮ, забивший дебютный гол с пенальти в АПЛ</fragment>
-    <fragment type="text">Португальский хавбек отличился взятием ворот в матче против Уотфорда.</fragment>
-    <fragment type="text">Политика в сфере конфиденциальности и персональных данных</fragment>
-    <fragment type="image">https://football.ua/tpl/football/img/header/logo.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/630x373/415/415711.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/110x72/415/415714.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/110x72/415/415715.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/110x72/415/415713.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/110x72/415/415712.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/110x72/415/415709.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/110x72/415/415710.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/110x72/415/415707.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/110x72/415/415695.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/110x72/415/415696.jpg</fragment>
-  </page>
-  <page url="https://football.ua/ukraine/415711-shakhter-spassja-ot-poteri-ochkov-v-matche-protiv-desny.html">
-    <fragment type="text">Шахтер спасся от потери очков в матче против Десны — football.ua</fragment>
-    <fragment type="text">Преимущества регистрации на football.ua:</fragment>
-    <fragment type="text">Общение с тысячами футбольных болельщиков</fragment>
-    <fragment type="text">Возможность получить e-mail на домене @football.ua</fragment>
-    <fragment type="text">Соглашение о конфиденциальности</fragment>
-    <fragment type="text">Я уже зарегистрирован, впустите!</fragment>
-    <fragment type="text">Введите адрес вашей электронной почты</fragment>
-    <fragment type="text">Жизнь футболиста: как игроки выбирают себе недвижимость</fragment>
-    <fragment type="text">Футбольное пиршество Шахтера обошлось без новых блюд на столе</fragment>
-    <fragment type="text">Серия А. Главные итоги зимнего трансферного окна</fragment>
-    <fragment type="text">10 главных моментов в карьере Криштиану Роналду</fragment>
-    <fragment type="text">Луиш Нани — о начале в Лиссабоне, воспоминаниях об МЮ и мечтах в MLS</fragment>
-    <fragment type="text">Топ-10 трансферов, которые еще могут состояться в январе</fragment>
-    <fragment type="text">Ромелу Лукаку: Однажды Конте сказал, что я играл как мусор</fragment>
-    <fragment type="text">Пауло Дибала: Нужно надеть маску, как гладиатор, и драться</fragment>
-    <fragment type="text">Главные выводы после первого матча Шахтера на сборах</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/210x151/414/414797.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/210x151/415/415272.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/210x151/415/415187.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/210x151/413/413096.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/210x151/414/414655.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/news/210x151/413/413361.jpg</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/football/team/logo_sm/0x20/24.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/football/team/logo_sm/0x20/23.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/football/team/logo_sm/0x20/219.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/football/team/logo_sm/0x20/290.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/football/team/logo_sm/0x20/406.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/football/team/logo_sm/0x20/1303.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/football/team/logo_sm/0x20/407.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/football/team/logo_sm/0x20/293.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/football/team/logo_sm/0x20/78.png</fragment>
-    <fragment type="image">https://s.ill.in.ua/i/football/team/logo_sm/0x20/220.png</fragment>
+  <page url="https://golos.ua/">
+    <fragment type="text">Новости Украины - последние новости дня</fragment>
+    <fragment type="text">В Украине отменили самоизоляцию для въезжающих - Минздрав</fragment>
+    <fragment type="text">Анонс пресс – конференции: «Смогут ли украинцы получать по две пенсии по смешанной системе?»</fragment>
+    <fragment type="text">«Ситуация ухудшается»: Шмыгаль пригрозил снова ввести в Украине жесткий карантин</fragment>
+    <fragment type="text">Спасатели предупредили о новой угрозе паводков на Закарпатье</fragment>
+    <fragment type="text">Коронавирус в Украине: в Минздраве назвали самый сложный регион</fragment>
+    <fragment type="text">Covid-19 в Киеве: число инфицированных превысило 4,6 тысячи</fragment>
+    <fragment type="text">В МВД анонсировали увеличение штрафов за превышение скорости</fragment>
+    <fragment type="text">Киев сковали огромные пробки: карата проблемных участков</fragment>
+    <fragment type="text">Национал-радикалы получили от власти карт-бланш на террор, поджоги и убийства – ОПЗЖ</fragment>
+    <fragment type="text">В Украине отменили самоизоляцию для въезжающих - Минздрав</fragment>
+    <fragment type="text">В Харькове жестоко избили члена партий: парень в тяжелом состоянии (ФОТО)</fragment>
+    <fragment type="text">Кабмин назначил Сергея Шкарлета и.о. министра образования</fragment>
+    <fragment type="text">Кендалл Дженнер позировала на кровати в откровенном белье (ФОТО)</fragment>
+    <fragment type="text">В Львовской области мужчина избил знакомую до смерти – полиция</fragment>
+    <fragment type="text">Левинкова: Если Зеленский и дальше будет копировать Порошенко, рейтинг "слуг народа" потеряет еще больше</fragment>
+    <fragment type="text">«МВФ будет против»: как «слуги народа» собрались повышать прожиточный минимум?</fragment>
+    <fragment type="text">Почем «дрова»: Ущерб от наводнения в Прикарпатье оценили в 400 миллионов гривен</fragment>
+    <fragment type="text">Аваков готов уйти, а Зеленский не хочет отставки главы МВД?</fragment>
+    <fragment type="text">Предвыборный карантин: «Окончательно уронит экономику»</fragment>
+    <fragment type="text">С. Яременко: «Больших всплесков курса гривны ожидать не стоит»</fragment>
+    <fragment type="text">С. Кравченко: «Мы никогда не узнаем достоверных данных о заболеваемости медиков COVID-19»</fragment>
+    <fragment type="text">А. Кучеренко: «Трагедия на Позняках произошла из-за того, что жилищный фонд стал неуправляемым»</fragment>
+    <fragment type="text">С. Кожушко: «Наемному работнику не стоит бояться отстаивать свои трудовые права в суде»</fragment>
+    <fragment type="text">В. Протас: «Маски могут стать источником распространения коронавируса»</fragment>
+    <fragment type="text">Пострадавших от взрыва в киевской многоэтажке поселили в дом-интернат</fragment>
+    <fragment type="text">В Киеве на Позняках взорвался дом</fragment>
+    <fragment type="text">В Харькове состоялся Чемпионат Украины по скалолазанью</fragment>
+    <fragment type="text">На Оболонской набережной проходит ремонт</fragment>
+    <fragment type="text">В Киеве митинговали за Порошенко</fragment>
+    <fragment type="text">Ярослав Рабошук. В проекте укрупнения районов Украины присутствуют политические мотивы</fragment>
+    <fragment type="text">Владимир Фундовный: Экономить на учителях неправильно</fragment>
+    <fragment type="text">Урожай-2020: будет ли Украина с хлебом, овощами и фруктами после заморозков? (пресс-конференция)</fragment>
+    <fragment type="text">«Право на голос»: «К чему приведут массовые беспорядки в США?»</fragment>
+    <fragment type="text">Родион Колышко: Сокращение вакансий идет по всем крупным видам экономической деятельности</fragment>
+    <fragment type="text">Усиление карантина не сможет отобрать у киевлян лето</fragment>
+    <fragment type="text">Правые утратили монополию на «улицу»</fragment>
+    <fragment type="text">Откуда деньги: в госбюджет Украины будут собирать средства проверками и штрафами?</fragment>
+    <fragment type="text">Коронавирус и путешествия: где отдохнуть украинцам?</fragment>
+    <fragment type="text">«Наливайки», рыбалка, метро: Чем порадовало киевлян ослабление карантина</fragment>
+    <fragment type="text">Карантин и проблемы в семье: как не огорчать мужа</fragment>
+    <fragment type="text">Новый формат политики пройдет верификацию на выборах этой осенью</fragment>
+    <fragment type="text">Коронакризис, СНБОУ и частные интересы</fragment>
+    <fragment type="text">Требование МВФ: как власти «продали» финансирование производства</fragment>
+    <fragment type="text">Пётр Порошенко удачно сходил во власть</fragment>
+    <fragment type="text">Рост безработицы и социальные бунты: что ждет Украину?</fragment>
+    <fragment type="image">https://golos.ua/assets/img/logo.png?1502208283</fragment>
+    <fragment type="image">https://golos.ua/assets/img/logos.png?1514729362</fragment>
+    <fragment type="image">https://golos.ua/assets/img/logo.png?1502208283</fragment>
+    <fragment type="image">https://golos.ua/assets/img/rec6.jpg?1593086568</fragment>
+    <fragment type="image">https://mc.yandex.ru/watch/42475099</fragment>
   </page>
 </data>
 ```
@@ -275,29 +265,44 @@ def task2():
 <?xml version='1.0' encoding='UTF-8'?>
 <shop>
   <product>
-    <description>Смартфон Apple iPhone XS 64GB Space Gray</description>
-    <price>19999</price>
-    <image>https://img.moyo.ua/img/products/4278/27_96.jpg</image>
+    <description>Зонт-трость детский Fulton Funbrella-2 C603 Black черный механический</description>
+    <price>620</price>
+    <image>https://wallet.ua/</image>
   </product>
   <product>
-    <description>Смартфон Apple iPhone 7 Plus 32 GB (Black)</description>
-    <price>13999</price>
-    <image>https://img.moyo.ua/img/products/1954/78_96.jpg</image>
+    <description>Зонт-трость детский Fulton Funbrella-2 C603 Pink розовый механический</description>
+    <price>620</price>
+    <image>https://wallet.ua/</image>
   </product>
   <product>
-    <description>Смартфон Huawei Y6 Pro DS Gold</description>
-    <price>4139</price>
-    <image>https://img.moyo.ua/img/products/2346/93_96.jpg</image>
+    <description>Зонт-трость детский Fulton Funbrella-2 C603 Silver серебристый  механический</description>
+    <price>620</price>
+    <image>https://wallet.ua/</image>
   </product>
   <product>
-    <description>Смартфон Huawei Y6 2019 DS Amber Brown</description>
-    <price>2999</price>
-    <image>https://img.moyo.ua/img/products/4404/71_96.png</image>
+    <description>Зонт-трость  для девочек PAOLO LOL 077-1 светло-розовый с принтом куклы LOL</description>
+    <price>170</price>
+    <image>https://wallet.ua/</image>
   </product>
   <product>
-    <description>Смартфон Huawei P20 (EML-L29) DS Black</description>
-    <price>9999</price>
-    <image>https://img.moyo.ua/img/products/4311/59_96.jpg</image>
+    <description>Зонт-трость  для девочек PAOLO LOL 077-2 розовый с принтом куклы LOL</description>
+    <price>170</price>
+    <image>https://wallet.ua/</image>
+  </product>
+  <product>
+    <description>Зонт-трость  для девочек PAOLO LOL 077-3 розовый с принтом куклы LOL</description>
+    <price>170</price>
+    <image>https://wallet.ua/</image>
+  </product>
+  <product>
+    <description>Зонт-трость для мальчика SKS "BARCELONA" синий</description>
+    <price>335</price>
+    <image>https://wallet.ua/</image>
+  </product>
+  <product>
+    <description>Зонт-трость для мальчика SKS "BARCELONA" темно-синий</description>
+    <price>335</price>
+    <image>https://wallet.ua/</image>
   </product>
 </shop>
 ```
@@ -323,31 +328,59 @@ def task2():
       <tbody>
         <tr>
           <td>
-            <img alt="image of product" src="https://img.moyo.ua/img/products/4278/27_96.jpg"/>
+            <img alt="image of product" src="https://wallet.ua/"/>
           </td>
-          <td>Смартфон Apple iPhone XS 64GB Space Gray</td>
-          <td>19999</td>
+          <td>Зонт-трость детский Fulton Funbrella-2 C603 Black черный механический</td>
+          <td>620</td>
         </tr>
         <tr>
           <td>
-            <img alt="image of product" src="https://img.moyo.ua/img/products/4336/84_96.png"/>
+            <img alt="image of product" src="https://wallet.ua/"/>
           </td>
-          <td>Смартфон Huawei P Smart 2019 Aurora Blue</td>
-          <td>5499</td>
+          <td>Зонт-трость детский Fulton Funbrella-2 C603 Pink розовый механический</td>
+          <td>620</td>
         </tr>
         <tr>
           <td>
-            <img alt="image of product" src="https://img.moyo.ua/img/products/2798/61_96.jpg"/>
+            <img alt="image of product" src="https://wallet.ua/"/>
           </td>
-          <td>Смартфон Apple iPhone 7 32 GB (Gold)</td>
-          <td>9999</td>
+          <td>Зонт-трость детский Fulton Funbrella-2 C603 Silver серебристый  механический</td>
+          <td>620</td>
         </tr>
         <tr>
           <td>
-            <img alt="image of product" src="https://img.moyo.ua/img/products/4547/25_96.jpg"/>
+            <img alt="image of product" src="https://wallet.ua/"/>
           </td>
-          <td>Смартфон Xiaomi Redmi 8A 2/32GB Ocean Blue</td>
-          <td>2999</td>
+          <td>Зонт-трость  для девочек PAOLO LOL 077-1 светло-розовый с принтом куклы LOL</td>
+          <td>170</td>
+        </tr>
+        <tr>
+          <td>
+            <img alt="image of product" src="https://wallet.ua/"/>
+          </td>
+          <td>Зонт-трость  для девочек PAOLO LOL 077-2 розовый с принтом куклы LOL</td>
+          <td>170</td>
+        </tr>
+        <tr>
+          <td>
+            <img alt="image of product" src="https://wallet.ua/"/>
+          </td>
+          <td>Зонт-трость  для девочек PAOLO LOL 077-3 розовый с принтом куклы LOL</td>
+          <td>170</td>
+        </tr>
+        <tr>
+          <td>
+            <img alt="image of product" src="https://wallet.ua/"/>
+          </td>
+          <td>Зонт-трость для мальчика SKS "BARCELONA" синий</td>
+          <td>335</td>
+        </tr>
+        <tr>
+          <td>
+            <img alt="image of product" src="https://wallet.ua/"/>
+          </td>
+          <td>Зонт-трость для мальчика SKS "BARCELONA" темно-синий</td>
+          <td>335</td>
         </tr>
       </tbody>
     </table>
